@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for
 import socket
 import json
 from datetime import datetime
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Event
+import atexit
 
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -62,13 +63,21 @@ def message():
 def page_not_found(e):
     return render_template('error.html'), 404
 
+exit_event = Event()
+
 # Socket Server
 def socket_server(queue):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind(('127.0.0.1', 5000))
         while True:
-            data, addr = s.recvfrom(1024)
-            queue.put(data)
+            try:
+                data, addr = s.recvfrom(1024)
+                queue.put(data)
+            except KeyboardInterrupt:
+                print("Server is shutting down...")
+                break
+
+atexit.register(lambda: exit_event.set() if exit_event else None)
 
 def handle_socket_data(data):
     # Отримуємо словник із вхідних даних
@@ -105,10 +114,16 @@ if __name__ == "__main__":
     socket_process.start()
 
     # Безперервна обробка даних з черги
-    while True:
-        if not socket_queue.empty():
-            data = socket_queue.get()
-            try:
-                handle_socket_data(data)
-            except Exception as e:
-                print(f"Error handling socket data: {e}")
+    try:
+        while True:
+            if not socket_queue.empty():
+                data = socket_queue.get()
+                try:
+                    handle_socket_data(data)
+                except Exception as e:
+                    print(f"Error handling socket data: {e}")
+    except KeyboardInterrupt:
+        print("Main process is shutting down...")
+        if socket_process.is_alive():
+            socket_process.terminate()
+        http_process.terminate()
