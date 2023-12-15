@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from multiprocessing import Process, Queue
 
+
 app = Flask(__name__, template_folder='templates', static_folder='static')
 last_message_id = 0
 socket_queue = Queue()
@@ -96,7 +97,7 @@ def handle_socket_data(data):
 # Запускаємо сервери
 if __name__ == "__main__":
     # Запускаємо HTTP сервер у власному процесі
-    http_process = Process(target=app.run, kwargs={'debug': True, 'port': 3000})
+    http_process = Process(target=app.run, kwargs={'debug': False, 'port': 3000})
     http_process.start()
 
     # Запускаємо Socket сервер у власному процесі
